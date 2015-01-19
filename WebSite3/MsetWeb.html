@@ -1,0 +1,87 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>this is a test</title>
+    <meta charset="UTF-8">
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="Bignum.js"></script>
+    <link rel="stylesheet" type="text/css" href="MsetStyles.css"/>
+    
+    <script>
+        // global variables
+        var precision = 20;
+        var worker = new Array();
+        
+        function init() {
+
+            $("#x").val("12345") ;
+            $("#y").val("67891") ;
+
+            var x = $("#x").val();
+
+            var b = new Big(x);
+
+            $('#res').val(b.format());
+
+           
+            
+        
+        }   // init
+
+        //*******************************************************
+        // Calc
+        //******************************************************
+        calc = function () {
+
+            
+            var x = new Big($('#x').val());
+            var y = new Big($('#y').val());
+
+            var z = y.times(x);
+
+            $('#res').val(z.format());
+
+
+
+        }
+
+
+    </script>
+
+</head>
+
+
+<body onload="init();">
+    <div style="width: 800px;" >
+    
+    
+
+        <div class="item_line">
+            <button onclick="calc()">Caclulate</button>
+            
+        </div>
+
+        <div class="item_line">
+           
+              
+            <label >X1</label>
+            <input id="x"; >
+            <label >Y1</label>
+            <input id="y"; >
+            
+            <div>
+            <label >RESULT</label>
+            <input id="res"; style="width:400px" >
+            </div>
+       
+                    
+        </div>
+
+
+       
+
+    </div>
+    
+</body>
+</html>
