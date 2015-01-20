@@ -1,7 +1,7 @@
 
 // store the base in power of 10 
-var bp = 2;
-var base = 100;
+var bp = 7;
+var base = Math.pow(10, bp);
 
 function Big(n) {
 
@@ -41,7 +41,7 @@ function Big(n) {
     for (var lz = 0; n.charAt(lz) == '0'; lz++) { }  // count the number of leading zeros in lz     
 
     if (lz == (n.length)) { // the string is just a series of Zeros
-        v[0] = e[0] = 0;
+        this.v[0] = this.e[0] = 0;
     }
     else {  // not just Zeros
 
@@ -93,10 +93,8 @@ Big.prototype.times = function (y) {
     // start with the sign
     res.s = (this.s == y.s) ? 1 : -1;
 
-    // add the exponents (will have to see if there is a carry at the end)
-    res.e = this.e + y.e;
-
-    // then the multiplication
+    
+    // Perform the multiplication
     // initialises the array of results
     for (var ind = 0 ; ind < this.v.length + y.v.length; ind++)
         res.v[ind] = 0;
@@ -106,20 +104,29 @@ Big.prototype.times = function (y) {
         for (var j = 0; j < y.v.length; j++) {
             t = res.v[i + j] + this.v[i] * y.v[j];
             res.v[i + j] = t % base;  //remainder
-            if (t >= base)
-                res.v[i + j + 1] += t / base | 0; //use the bitwise operator to truncate 32 bits
+            if (t >= base) // if we have a carry, add it to the next token
+                res.v[i + j + 1] += t / base | 0; //use the bitwise operator to truncate 32 bits before adding it
         }
 
     
 
-    if (res.v[i + j - 1] == 0) // if the last element is zero 
-        res.v.pop();  // remove it because we have no carry
-    else
-        res.e += res.v[i + j - 1].toString().length; // store the length of the carry we add it to the exponent and will adjust below. 
+    if (res.v[i + j - 1] == 0) { // if the last element is zero 
+        res.v.pop();  // remove it because we have no carry and no need for leading zeros
+        res.e = res.v[i + j - 2].toString().length;  // length of the last 2 tokens (one of them is zero)
+    }
+    else {
+        res.e = res.v[i + j - 1].toString().length + bp; // length of the last 2 tokens
+    }
 
+    // calculate the length of the last 2 tokens (i+j-1) and (i+j-1) of res and compare it with 
+    // the sum of the length of the last token of the original numbers (i-1) and (j-1). 
+    // if the length is the same as sum, then there is a carry eg 5*5=25 (1+1=2)... and res.e is sum of exp + 1
+    // otherwise there is no carry eg 2*3=6 (1+1>1)... and res.e is simply the sum of exp.
+    res.e -= this.v[i - 1].toString().length + y.v[j - 1].toString().length - 1;  // result is either 0 or 1
+    res.e += this.e + y.e;
 
-    res.e += res.v[this.v.length + y.v.length - 2].toString().length  // add the one before last
-    res.e -= Math.max(this.v[this.v.length - 1].toString().length , y.v[y.v.length - 1].toString().length); // subtract the length of the last 2 cells of each number
+    //res.e += res.v[this.v.length + y.v.length - 2].toString().length  // add the one before last
+    //res.e -= Math.max(this.v[this.v.length - 1].toString().length , y.v[y.v.length - 1].toString().length); // subtract the length of the last 2 cells of each number
         
 
     return res;
