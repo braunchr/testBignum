@@ -15,8 +15,8 @@
         
         function init() {
 
-            $("#x").val("99999999999999999");
-            $("#y").val("99999999999999999");
+            $("#x").val("99.912345e1");
+            $("#y").val("0.00651231");
 
             var x = $("#x").val();
 
@@ -39,10 +39,10 @@
             var y = new Big($('#y').val());
             var p1 = window.performance.now();
 
-            for (var p = 0 ; p< 100000; p++)
+            //for (var p = 0 ; p< 100000; p++)
             var z = y.times(x);
 
-            $('#res').val(z.format());
+            $('#res').val(x.format());
 
             var p2 = window.performance.now();
             var p = ~~(p2 - p1);
