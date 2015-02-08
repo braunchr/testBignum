@@ -2,7 +2,7 @@
 
 var bp = 7; // number of digits per token. Store the base in power of 10 - range 1-7 - if 8 or over, then the multiplicatin will result in 16 digits which exceeds the javascript maximum of 2^32
 var base = Math.pow(10, bp);
-var PRECISION = 3 // maximum number of tokens
+var PRECISION = 6;  // maximum number of tokens
 
 //**************************************************************************************
 //                         C O N S T R U C T O R
@@ -32,7 +32,7 @@ function Big(n) {
 
 
     if (n == null) return;
-
+    
     n = n.replace(/\s+/g, ''); // remove all the spaces
 
     this.s = (n.charAt(0) == '-') ? (n = n.slice(1), -1) : 1; //store and strip the sign
@@ -116,9 +116,12 @@ Big.prototype.format = function() {
     var st = (this.s == 1) ? '+' : '-';
     var v = this.v;
     var e = this.e.toString();
+    var tok1 = v[v.length - 1].toString();
+    
 
     //add the first token and the decimal point
-    st = st.concat(v[v.length-1].toString(), '.');
+    //st = st.concat(tok1.toString(), '.');
+    st = st.concat(tok1.slice(0, 1), '.', tok1.slice(1));
     
 
     for (var i = v.length - 2; i >= 0; i--) {
@@ -126,8 +129,12 @@ Big.prototype.format = function() {
         for (var pad = bp; v[i].toString().length < pad; pad--) { st = st.concat('0'); } //pad with zeros
         st = st.concat(v[i].toString());
     }
-    st = st.concat(' E', e);
 
+    // remove trailing zeros
+    st = st.replace(/^0+|0+$/g, "")
+
+
+    st = st.concat(' E', e*bp + tok1.length-1 );
     return (st);
 }
 
@@ -154,22 +161,24 @@ Big.prototype.times = function (y) {
                 res.v[i + j + 1] += ~~(t / base); //use the bitwise operator to truncate 32 bits before adding it.    
             }
         }
-
+    
     if (res.v[i + j - 1] == 0) { // if the last element is zero - this is the most significant token
-        res.v.pop();  // remove it because we have no carry and no need for leading zeros
-        res.e = res.v[i + j - 2].toString().length;  // store the length of the last 2 tokens (in this case, one of them is zero so we only look at one of the last 2)
+        res.v.pop();  // remove it because we have no carry and no need for leading zeros]
+        res.e = this.e + y.e;
+        //res.e = res.v[i + j - 2].toString().length;  // store the length of the last 2 tokens (in this case, one of them is zero so we only look at one of the last 2)
     }
     else {
-        res.e = res.v[i + j - 1].toString().length + bp; // store the length of the last 2 tokens
+        res.e = this.e + y.e +1 ;
     }
 
-    // calculate the length of the last 2 tokens (i+j-1) and (i+j-2) of res and compare it with 
-    // the sum of the length of the last token of the original numbers (i-1) and (j-1). 
-    // if the length is the same as sum, then there is a carry eg 5*5=25 (1+1=2)... and res.e is sum of exp + 1
-    // otherwise there is no carry eg 2*3=6 (1+1>1)... and res.e is simply the sum of exp.
 
-    res.e -= this.v[i - 1].toString().length + y.v[j - 1].toString().length - 1;  // the result of this line is either 0 or 1
-    res.e += this.e + y.e; //. whatever we had on the previous line (either 0 or 1) gets added to the sum of the 2 exponents. 
+    //Round for precision
+    if (res.v.length > PRECISION) res.v.length = PRECISION;
+
+    //Remove trailing zeros
+    while(res.v[0]==0 && res.v.length>0)
+        res.v.shift();
+
 
     return res;
 
@@ -180,14 +189,21 @@ Big.prototype.times = function (y) {
 //                                  A D D I T I O N 
 //**************************************************************************************
 
-Big.prototype.plus = function (y) {
+Big.prototype.plus = function (y, prec) {
 
     var res = new Big();
     var x = this;
-    var eo = x.e - y.e; // the offset between the 2 numbers
-    var lo = 0;    // lenth offset
-    var reslen = 0; // store the length of the result
+    var eo = x.e - y.e; // the exponent offset between the 2 numbers
+    var carry; // flag
+    var so; // starting offset
+    var reslen; // store the length of the result
 
+    res.s = x.s;  // the sign of the result is the sign of any numbers
+
+    if (!isNaN(prec)) PRECISION = prec;  // if a prec was passed, set the precision.
+
+
+ 
     // look at the difference in exponents and shift the smallest number by the difference in exponents. 
     // shifting the smallest number means adding leading zeros at the start (which is the end of the array) 
 
@@ -197,30 +213,41 @@ Big.prototype.plus = function (y) {
         eo = -eo;
     }
  
-    lo = ((x.v.length - 1) - (y.v.length - 1)) * bp + x.v[0].toString().length - y.v[0].toString().length - eo;
+    // set the exponent of the result to be the same as the largest exponent
+    // there still could be a carry which will be dealt later by testing for it.
+    res.e = x.e;
 
+    reslen = Math.max(x.v.length, y.v.length + eo); // stores the assumed length of the result. It is the length of the largest number
+    xo = x.v.length - x.e - 1;  // the x offset represents the number of digits after the decimal points of x . Will be needed to align
+    yo = y.v.length - y.e - 1;  // the y offset represents the number of digits after the decimal points of y . Will be needed to align
 
-    if (lo >= 0) {  //if x has more digits than y (shifted by offset eo)
-        reslen = x.v.length;
-        for (var i = 0; i < lo; i++)
-            x.v.unshift(0);
-    } else {        // if y is the longest array, then add zeros at the end of x
-        reslen = y.v.length;
-        for (var i = 0; i < lo; i++)
-            y.v.unshift(0)
+    // to align the numbers, we have to shift xo and yo until one is zero and the otherone negative. Always keep the same distance.
+    // First if they both are negative (for example for large exponents if we have trailing zeros)
+    while (xo < 0 && yo < 0) { xo++; yo++ };  // tets with 1e5 and 1e7
+
+    // Second if one of them is positive. Shift down so that the largest one (whichever that is) lands at zero. This is where we start the addition. 
+    while (xo > 0 || yo > 0) { xo--; yo-- };  // test with 1 and 1e-2 or 1.234 and 1e-1.  
+
+    // at this point, the numbers are aligned with their offsets in place xo and yo. One is zero and the other negative. 
+    // if the lentgh of the result is greater than the required precision, then 
+    // truncate to the precision. for example 10^3 + 10^-7
+    // this will be done by starting the addition of x and y at the Starting Offset (SO).
+    (reslen > PRECISION) ? so = reslen - PRECISION : so =0;
+  
+    for (var i = so; i < reslen; i++) { //loop for the main addition start at so
+        carry = false; 
+
+        // add the digits of x and y and the carry. For each of them test if they are null first in which case use zero
+        res.v[i - so] = (isNaN(x.v[i + xo]) ? 0 : x.v[i + xo]) + (isNaN(y.v[i + yo]) ? 0 : y.v[i + yo]) + (isNaN(res.v[i - so]) ? 0 : res.v[i - so]);
+
+        if (res.v[i - so] >= base) { // if there is a carry, only store
+            res.v[i - so + 1] = (isNaN(res.v[i - so + 1]) ? 0 : res.v[i - so + 1]) + Math.floor(res.v[i - so] / base);
+            res.v[i - so] = res.v[i - so] - base * res.v[i - so + 1];  //we could use remainder, but this avoids a division
+            carry = true;
+        }
     }
 
-    for (var i = 0; i < reslen; i++) { //loop for the main addition
-        res.v[i] = x.v[i] + y.v[i] + (res.v[i] = NaN ? 0 : res.v[i]);
-        if (res.v[i] > base) res[i + 1] += res.v[i] - base;
-    }
-
-
-
-
-
-    
-
+    if (carry) res.e += 1; // if there was a carry at the most significant digit (which is the last loop), then the exponent goes up
 
     return res;
 }

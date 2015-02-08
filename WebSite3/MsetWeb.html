@@ -15,8 +15,8 @@
         
         function init() {
 
-            $("#x").val("99.912345e1");
-            $("#y").val("0.00651231");
+            $("#x").val("1.23456");
+            $("#y").val("1e-1");
 
             var x = $("#x").val();
 
@@ -34,19 +34,21 @@
         //******************************************************
         calc = function () {
 
-            
+            var prec = parseFloat($('#p').val());
+
             var x = new Big($('#x').val());
             var y = new Big($('#y').val());
+
             var p1 = window.performance.now();
 
             //for (var p = 0 ; p< 100000; p++)
-            var z = y.times(x);
+            var z = y.plus(x, prec);
 
-            $('#res').val(x.format());
+            $('#res').val(z.format());
 
             var p2 = window.performance.now();
             var p = ~~(p2 - p1);
-            $('#p').val(p);
+            //$('#p').val(p);
         }
 
 
