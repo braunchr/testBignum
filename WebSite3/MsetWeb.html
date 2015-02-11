@@ -15,17 +15,14 @@
         
         function init() {
 
-            $("#x").val("1.23456");
-            $("#y").val("1e-1");
+            $("#x").val("23.5");
+            $("#y").val("24");
 
             var x = $("#x").val();
 
             var b = new Big(x);
 
             $('#res').val(b.format());
-
-           
-            
         
         }   // init
 
@@ -41,8 +38,8 @@
 
             var p1 = window.performance.now();
 
-            //for (var p = 0 ; p< 100000; p++)
-            var z = y.plus(x, prec);
+            //for (var p = 0 ; p< 1000000; p++)
+                var z = x.minus(y, prec);
 
             $('#res').val(z.format());
 
@@ -60,16 +57,11 @@
 <body onload="init();">
     <div style="width: 800px;" >
     
-    
-
         <div class="item_line">
-            <button onclick="calc()">Caclulate</button>
-            
+            <button onclick="calc()">Caclulate</button>        
         </div>
 
         <div class="item_line">
-           
-              
             <label >X1</label>
             <input id="x"; >
             <label >Y1</label>
@@ -81,12 +73,7 @@
             <label >RESULT</label>
             <input id="res"; style="width:400px" >
             </div>
-       
-                    
         </div>
-
-
-       
 
     </div>
     
