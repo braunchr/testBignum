@@ -1,4 +1,4 @@
-<!DOCTYPE HTML>
+﻿<!DOCTYPE HTML>
 <html>
 
 <head>
@@ -39,9 +39,9 @@
             var p1 = window.performance.now();
 
             //for (var p = 0 ; p< 1000000; p++)
-                var z = x.minus(y, prec);
+                var z = x.compare(y);
 
-            $('#res').val(z.format());
+            $('#res').val(z);
 
             var p2 = window.performance.now();
             var p = ~~(p2 - p1);

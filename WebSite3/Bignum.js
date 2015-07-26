@@ -8,7 +8,7 @@ var PRECISION = 60;  // maximum number of tokens
 //                         C O N S T R U C T O R
 
 // Constructor for the bignum structure 
-// stored in an array of interger "tokens" or precision bp defined as a constant (1=7)
+// stored in an array of integer "tokens" or precision bp defined as a constant (1=7)
 // the structure of the bignum is 
 // "s" for sign, "e" for exponent" and "v" for the array value
 // The least significant token is stored in V[0] (the reverse from normal notation) 
@@ -86,10 +86,12 @@ function Big(n) {
 
         nl = n.length;
         if (ex + 1 < nl) { //there is a decimal point. We have to adjust the padding to get the dp as a multiple of the base. 
+            if((nl- (ex+1)) % bp !=0)
             for (i = 0; i < bp - (nl - (ex + 1)) % bp ; i++) //pad with zeros to make this multiple of bp. only pad the numbers after the decimal point
                 n = n + "0";
         }
         else { // there is no decimal point so just add as many zeros after nl to go to ex+1 (modulo bp)
+            if (((ex + 1)-nl) % bp != 0)
             for (i = 0; i < ((ex + 1) - nl) % bp ; i++) //pad with zeros to make this multiple of bp. 
                 n = n + "0";
         }
@@ -174,7 +176,7 @@ Big.prototype.times = function (y) {
     if (res.v.length > PRECISION) res.v.length = PRECISION;
 
     //Remove trailing zeros
-    while(res.v[0]==0 && res.v.length>0)
+    while(res.v[0]==0 && res.v.length>1)
         res.v.shift();
 
 
@@ -305,9 +307,15 @@ Big.prototype.minus = function (y, prec) {
 
     if (carry) res.e -= 1; // if there was a carry at the most significant digit (which is the last loop), then the exponent goes down 
 
-    while (res.v[res.v.length - 1] == 0) { // if the most significant digit is zero
-        res.v.pop(); //remove trailing zero
+    while (res.v[res.v.length - 1] == 0) { // if the most significant digit is zero and there are more digits
+        res.v.pop(); //remove leading zeros
         res.e -= 1; //shift the exponent
+    }
+
+    if (res.v.length == 0) {  // the result of the subtraction was zero, then return zero
+        res.v[0] = 0;
+        res.e = 0;
+        res.s = 1;
     }
 
     return res;
@@ -318,17 +326,22 @@ Big.prototype.minus = function (y, prec) {
 //                                  C O M P A R I S O N S
 //**************************************************************************************
 
-Big.prototype.gt = function (y) {
+Big.prototype.compare = function (y) {
 
     var x = this;
     var xt, yt, i, numiter;
-    
-    if (x.e > y.e) return true;
-    if (x.s == 1 && y.s == -1) return true;
-    
-    if (x.e < y.e) return false;
+
+    if (x.s == 1 && y.s == -1) return true; // compare the signs first
     if (x.s == -1 && y.s == 1) return false;
-     
+
+    // at this stage, we know the signs are the same
+
+    if (x.e > y.e)
+        return (x.s == 1) ? true : false; // then compare the exponents
+    if (x.e < y.e)
+        return (x.s == -1) ? true : false; // then compare the exponents
+
+
     // at this stage the exponents are the same and the signs are the same
     
     if(x.v.length > y.v.length){
@@ -342,14 +355,16 @@ Big.prototype.gt = function (y) {
         xo = y.v.length-x.v.length;
     }
 
-    for (i = numiter-1; i >= 0; i--) {
-        if ((isNaN(x.v[i - xo]) ? 0 : x.v[i - xo]) > (isNaN(y.v[i - yo]) ? 0 : y.v[i - yo])) // check one token at a time offset. 
-            return (x.s == 1) ? true : false; // if both x and y are negative. the greatest is the lowest absolute value
-        if ((isNaN(x.v[i - xo]) ? 0 : x.v[i - xo]) < (isNaN(y.v[i - yo]) ? 0 : y.v[i - yo])) // check one token at a time offset. 
-            return (x.s == 1) ? false : true; // if both x and y are negative. the greatest is the lowest absolute value
-    }
+    for (i = numiter - 1; i >= 0; i--) {
+        xt = isNaN(x.v[i - xo]) ? 0 : x.v[i - xo];
+        yt = isNaN(y.v[i - yo]) ? 0 : y.v[i - yo];
+        
+        if (xt > yt) return (x.s == 1) ? true : false; // x has the largest absolute value
+        else if (xt < yt) return (x.s == 1) ? false : true; // y has the largest absolute vaule
+        
+            }
 
-    return false; // the two numbers are equal
+    return 0; // at this point, we have finished looping, so the two numbers are equal
     
 }
 
